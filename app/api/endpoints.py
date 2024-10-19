@@ -8,7 +8,10 @@ from app.services.prompt import generate_prompt
 
 router = APIRouter()
 
-message_history = []
+message_history = [
+    {"role": "user", "content": "groovy!!"},
+    {"role": "assistant", "content": "groovy funk track with tight basslines, wah-wah guitar, and funky horns"}
+]
 
 @router.get("/stream")
 async def stream_video(token: str = Query(default=None)):
@@ -18,7 +21,7 @@ async def stream_video(token: str = Query(default=None)):
         raise HTTPException(status_code=500, detail=e)
 
     # Create a streaming response from the generator
-    response = StreamingResponse(video_streamer(token, history), media_type="video/mp4")
+    response = StreamingResponse(video_streamer(token, get_prompt()), media_type="video/mp4")
     
     # Add headers to suggest a filename for downloading, if necessary
     response.headers["Content-Disposition"] = "inline; filename=video.mp4"
@@ -37,7 +40,11 @@ async def prompt(request: PromptRequest):
     message_history.append({"role": "user", "content": request.message})
     latest_prompt = generate_prompt(message_history)
     message_history.append({"role": "assistant", "content": latest_prompt})
-    print(message_history)
+    return message_history[-1]["content"]
+
+@router.get("/prompt")
+async def get_prompt():
+    return message_history[-1]["content"]
 
 @router.get("/history")
 async def history():

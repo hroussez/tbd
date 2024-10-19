@@ -1,6 +1,6 @@
 import os
 
-def video_streamer(token: str):
+def video_streamer(token: str, prompt: str):
     """Generator function to stream video content."""
 
     # Define the path to the video file

@@ -48,15 +48,11 @@ As part of your job, you receive a list of instructions and examples of music yo
 Consider the transition between the current song and the next one, and use the instructions and examples to generate a prompt that will be used to generate the next song in the sequence.
 
 Return only the prompt, nothing else.
-
-Examples:
-{examples}
 """
 
 client = OpenAI()
 
 def generate_prompt(history: list[dict]):
-    print(system_prompt)
     response = client.chat.completions.create(
         model="gpt-4o-mini",
         messages=[{"role": "system", "content": system_prompt}, *history]
