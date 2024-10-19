@@ -40,12 +40,12 @@ async def prompt(request: PromptRequest):
     message_history.append({"role": "user", "content": request.message})
     latest_prompt = generate_prompt(message_history)
     message_history.append({"role": "assistant", "content": latest_prompt})
-    latest_prompt_content = latest_prompt["content"]
 
     with open("prompt.txt", "w") as f:
-        f.write(latest_prompt_content)
+        f.write(latest_prompt)
 
-    return latest_prompt_content
+    return latest_prompt
+
 @router.get("/prompt")
 async def get_prompt():
     return message_history[-1]["content"]
