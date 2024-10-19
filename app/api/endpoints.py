@@ -4,10 +4,11 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from app.services.stream import video_streamer
+from app.services.prompt import generate_prompt
 
 router = APIRouter()
 
-prompt_history = []
+message_history = []
 
 @router.get("/stream")
 async def stream_video(token: str = Query(default=None)):
@@ -33,9 +34,11 @@ class PromptRequest(BaseModel):
 
 @router.post("/prompt")
 async def prompt(request: PromptRequest):
-    prompt_history.append(request.message)
-
+    message_history.append({"role": "user", "content": request.message})
+    latest_prompt = generate_prompt(message_history)
+    message_history.append({"role": "assistant", "content": latest_prompt})
+    print(message_history)
 
 @router.get("/history")
 async def history():
-    return prompt_history
+    return message_history
