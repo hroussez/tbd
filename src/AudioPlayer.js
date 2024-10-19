@@ -4,16 +4,20 @@ function AudioPlayer({ audioUrl }) {
     const audioRef = useRef(null);
 
     const handlePlay = () => {
-        audioRef.current.play();
+        if (audioRef.current) {
+            audioRef.current.play();
+        }
     };
 
     const handlePause = () => {
-        audioRef.current.pause();
+        if (audioRef.current) {
+            audioRef.current.pause();
+        }
     };
 
     return (
         <div>
-            <audio ref={audioRef} src={audioUrl} />
+            <audio ref={audioRef} src={audioUrl} controls />
             <button onClick={handlePlay}>Play</button>
             <button onClick={handlePause}>Pause</button>
         </div>
