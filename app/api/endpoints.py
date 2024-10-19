@@ -9,8 +9,8 @@ from app.services.prompt import generate_prompt
 router = APIRouter()
 
 message_history = [
-    {"role": "user", "content": "groovy!!"},
-    {"role": "assistant", "content": "groovy funk track with tight basslines, wah-wah guitar, and funky horns"}
+    {"role": "user", "content": "let's go!"},
+    {"role": "assistant", "content": "energetic nu-disco track with fast-paced beats, vibrant bass grooves, and funky synth melodies that make you want to dance"}
 ]
 
 @router.get("/stream")
