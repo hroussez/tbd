@@ -1,7 +1,8 @@
 import uuid
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, FastAPI, Form, Response
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
+from twilio.twiml.messaging_response import MessagingResponse
 
 from app.services.stream import video_streamer
 from app.services.prompt import generate_prompt
@@ -32,19 +33,20 @@ async def stream_video(token: str = Query(default=None)):
     
     return response
 
-class PromptRequest(BaseModel):
-    message: str
-
 @router.post("/prompt")
-async def prompt(request: PromptRequest):
-    message_history.append({"role": "user", "content": request.message})
+async def prompt(From: str = Form(...), Body: str = Form(...)):
+    message_history.append({"role": "user", "content": Body})
     latest_prompt = generate_prompt(message_history)
     message_history.append({"role": "assistant", "content": latest_prompt})
 
     with open("prompt.txt", "w") as f:
         f.write(latest_prompt)
 
-    return latest_prompt
+    response = MessagingResponse()
+    response.message(latest_prompt)
+
+    # return Response(content=str(response), media_type="application/xml")
+
 
 @router.get("/prompt")
 async def get_prompt():
