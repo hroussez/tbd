@@ -1,26 +1,26 @@
-from fastapi import APIRouter, HTTPException
-from fastapi.responses import FileResponse
-from pydantic import BaseModel
+from fastapi import APIRouter, HTTPException, Query
+from fastapi.responses import StreamingResponse
+from app.services.stream import video_streamer
+import uuid
 import os
 
 router = APIRouter()
 
-# Define the request model
-class GenerateRequest(BaseModel):
-    prompt: str
+@router.get("/stream")
+async def stream_video(token: str = Query(default=None)):
+    try:
+        video_streamer(token)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=e)
 
-@router.post("/gen")
-async def generate_audio(request: GenerateRequest):
-    prompt = request.prompt
-    if not prompt:
-        raise HTTPException(status_code=400, detail="Prompt is required")
+    # Create a streaming response from the generator
+    response = StreamingResponse(video_streamer(token), media_type="video/mp4")
     
-    # Define the path to the audio file
-    audio_file_path = "data/sample_000.wav"
+    # Add headers to suggest a filename for downloading, if necessary
+    response.headers["Content-Disposition"] = "inline; filename=video.mp4"
     
-    # Check if the file exists
-    if not os.path.exists(audio_file_path):
-        raise HTTPException(status_code=404, detail="Audio file not found")
+    # Include the new token in the response headers (optional, you can return it via JSON too)
+    new_token = str(uuid.uuid4()) if token is None else token
+    response.headers["X-New-Token"] = new_token
     
-    # Return the audio file
-    return FileResponse(audio_file_path, media_type="audio/wav", filename="sample_000.wav")
+    return response
