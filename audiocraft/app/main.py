@@ -201,7 +201,7 @@ def predict_full(model, model_path, decoder, text, melody, duration, topk, topp,
 def index2wav(index, output_dir):
     return f"{output_dir}/{str(index).zfill(3)}.wav"
 
-if __name__ == "__main__":
+def main():
     model = "facebook/musicgen-large"
     model_path = ""
     decoder = "Default"
@@ -319,5 +319,5 @@ if __name__ == "__main__":
             index = 0
 
 
-
-
+if __name__ == "__main__":
+    main()
