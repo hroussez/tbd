@@ -81,6 +81,5 @@ env/
 *.iml
 .idea/
 
-data/
 node_modules
 prompt.txt
