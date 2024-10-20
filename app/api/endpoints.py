@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime
 from fastapi import APIRouter, HTTPException, Query, FastAPI, Form, Response
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
@@ -9,10 +10,12 @@ from app.services.prompt import generate_prompt
 
 router = APIRouter()
 
-message_history = [
+chat_history = [
     {"role": "user", "content": "let's go!"},
     {"role": "assistant", "content": "energetic nu-disco track with fast-paced beats, vibrant bass grooves, and funky synth melodies that make you want to dance"}
 ]
+
+messages_history = []
 
 @router.get("/stream")
 async def stream_video(token: str = Query(default=None)):
@@ -22,10 +25,10 @@ async def stream_video(token: str = Query(default=None)):
         raise HTTPException(status_code=500, detail=e)
 
     # Create a streaming response from the generator
-    response = StreamingResponse(video_streamer(token, get_prompt()), media_type="video/mp4")
+    response = StreamingResponse(video_streamer(token, get_prompt()), media_type="audio/wave")
     
     # Add headers to suggest a filename for downloading, if necessary
-    response.headers["Content-Disposition"] = "inline; filename=video.mp4"
+    response.headers["Content-Disposition"] = "inline; filename=audio.wav"
     
     # Include the new token in the response headers (optional, you can return it via JSON too)
     new_token = str(uuid.uuid4()) if token is None else token
@@ -35,9 +38,11 @@ async def stream_video(token: str = Query(default=None)):
 
 @router.post("/prompt")
 async def prompt(From: str = Form(...), Body: str = Form(...)):
-    message_history.append({"role": "user", "content": Body})
-    latest_prompt = generate_prompt(message_history)
-    message_history.append({"role": "assistant", "content": latest_prompt})
+    messages_history.append({"timestamp": datetime.now(), "content": Body, "from": From[-4:]})
+
+    chat_history.append({"role": "user", "content": Body})
+    latest_prompt = generate_prompt(chat_history)
+    chat_history.append({"role": "assistant", "content": latest_prompt})
 
     with open("prompt.txt", "w") as f:
         f.write(latest_prompt)
@@ -50,8 +55,8 @@ async def prompt(From: str = Form(...), Body: str = Form(...)):
 
 @router.get("/prompt")
 async def get_prompt():
-    return message_history[-1]["content"]
+    return chat_history[-1]["content"]
 
 @router.get("/history")
 async def history():
-    return message_history
+    return messages_history
