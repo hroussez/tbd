@@ -1,0 +1,23 @@
+[
+    {"trackname": "T 00",  "src": "/public/000.wav"},
+    {"trackname": "T 01",  "src": "/public/001.wav"},
+    {"trackname": "T 02",  "src": "/public/002.wav"},
+    {"trackname": "T 03",  "src": "/public/003.wav"},
+    {"trackname": "T 04",  "src": "/public/004.wav"},
+    {"trackname": "T 05",  "src": "/public/005.wav"},
+    {"trackname": "T 06",  "src": "/public/006.wav"},
+    {"trackname": "T 07",  "src": "/public/007.wav"},
+    {"trackname": "T 08",  "src": "/public/008.wav"},
+    {"trackname": "T 09",  "src": "/public/009.wav"},
+    {"trackname": "T 10", "src": "/public/010.wav"},
+    {"trackname": "T 11", "src": "/public/011.wav"},
+    {"trackname": "T 12", "src": "/public/012.wav"},
+    {"trackname": "T 13", "src": "/public/013.wav"},
+    {"trackname": "T 14", "src": "/public/014.wav"},
+    {"trackname": "T 15", "src": "/public/015.wav"},
+    {"trackname": "T 16", "src": "/public/016.wav"},
+    {"trackname": "T 17", "src": "/public/017.wav"},
+    {"trackname": "T 18", "src": "/public/018.wav"},
+    {"trackname": "T 19", "src": "/public/019.wav"},
+    {"trackname": "T 20", "src": "/public/020.wav"}
+]
