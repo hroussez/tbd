@@ -25,13 +25,14 @@ endpoints.initialize_router(prompt_queue, wav_queue)
 app.include_router(endpoints.router)
 
 def process_queue():
+    last_wav = None
     while True:
         prompt = prompt_queue.get()
-        wav_file = audiocraft.generate_audio(prompt)
+        wav_file = audiocraft.generate_audio(prompt, last_wav)
 
-        with open(wav_file, "rb") as f:
-            b = f.read()
-            wav_queue.put(b)
+        wav_queue.put(wav_file)
+
+        last_wav = wav_file
 
 if __name__ == "__main__":
     import uvicorn

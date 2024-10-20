@@ -5,9 +5,9 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from twilio.twiml.messaging_response import MessagingResponse
 from queue import Queue
-import io
+import os
+from starlette.responses import StreamingResponse
 
-from app.services.stream import video_streamer
 from app.services.prompt import generate_prompt
 
 router = APIRouter()
@@ -31,16 +31,20 @@ def initialize_router(global_prompt_queue: Queue, global_wav_queue: Queue):
 
     prompt = get_prompt_sync()  # Await the coroutine to get the result
     prompt_queue.put(prompt)
+    prompt_queue.put(prompt)
 
 @router.get("/stream")
 async def stream():
-    wav_data = wav_queue.get()
+    wav_file_path = wav_queue.get()
     prompt_queue.put(get_prompt_sync())
 
+    if not os.path.exists(wav_file_path):
+        raise HTTPException(status_code=404, detail="WAV file not found")
+
     def iterfile():
-        with io.BytesIO(wav_data) as f:
+        with open(wav_file_path, "rb") as file_like:
             while True:
-                chunk = f.read(8192)  # Read in 8KB chunks
+                chunk = file_like.read(8192)  # Read in 8KB chunks
                 if not chunk:
                     break
                 yield chunk
@@ -49,7 +53,8 @@ async def stream():
     response = StreamingResponse(iterfile(), media_type="audio/wav")
     
     # Add headers to suggest a filename for downloading, if necessary
-    response.headers["Content-Disposition"] = "inline; filename=audio.wav"
+    filename = os.path.basename(wav_file_path)
+    response.headers["Content-Disposition"] = f"inline; filename={filename}"
     
     return response
 

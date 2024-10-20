@@ -201,23 +201,67 @@ def predict_full(model, model_path, decoder, text, melody, duration, topk, topp,
 def index2wav(index, output_dir):
     return f"{output_dir}/{str(index).zfill(3)}.wav"
 
-def generate_audio(prompt):
+def generate_audio(prompt, last_wav=None):
     model = "facebook/musicgen-small"
     model_path = ""
     decoder = "Default"
     melody = None
-    duration = 30
+    duration = 10
     topk = 250
     topp = 0 
     temperature = 1
     cfg_coef = 3
-    output_dir = "output"
-    os.system('rm -rf output/*.wav')
+    # Set the duration of the crossfade (in milliseconds)
+    crossfade_duration = 4000
+
+    if last_wav is not None:
+        duration += crossfade_duration / 1000
 
     print("generating:", prompt)
     start_time = time.time()
     _, wav_file, _, _ = predict_full(model, model_path, decoder, prompt, melody, duration, topk, topp, temperature, cfg_coef)
     end_time = time.time()
-    print("finished", duration, "in", round(end_time - start_time, 2), "seconds")
+    print("finished", duration, "in", round(end_time - start_time, 2), "seconds", wav_file)
 
-    return wav_file
+    audio2 = AudioSegment.from_wav(wav_file)
+
+    with NamedTemporaryFile("wb", suffix=".wav", delete=False) as file:
+        audio2.export(file.name, format="wav")
+        wav_file = file.name
+
+    print("new wav", wav_file)
+    
+    if last_wav is None:
+        print("no last wav")
+        return wav_file
+    
+    wav1 = last_wav
+    wav2 = wav_file
+
+    # Load audio files
+    audio1 = AudioSegment.from_wav(wav1)
+    
+    # Crossfade the two audio files
+    output = audio1.append(audio2, crossfade=crossfade_duration)
+    # Get the total duration of the output audio in milliseconds
+    total_duration = len(output)
+
+    with NamedTemporaryFile("wb", suffix=".wav", delete=False) as file:
+        print("exporting crossfade", file.name)
+        output.export(file.name, format="wav")
+        wav_file = file.name
+
+    # Calculate the midpoint to split the audio
+    midpoint = total_duration // 2
+    print(total_duration)
+
+    # Split the audio into two parts
+    first_half = output[:midpoint]
+    second_half = output[midpoint:]
+
+    first_half.export(wav1, format="wav")
+    second_half.export(wav2, format="wav")
+
+    print("returning", wav2)
+
+    return wav2
