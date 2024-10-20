@@ -1,8 +1,14 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.api import endpoints
+from queue import Queue
+from app.core import audiocraft
+import threading
 
 app = FastAPI()
+
+prompt_queue = Queue()
+wav_queue = Queue()
 
 # Configure CORS to allow frontend requests
 app.add_middleware(
@@ -13,9 +19,26 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+endpoints.initialize_router(prompt_queue, wav_queue)
+
 # Include the router from the endpoints module
 app.include_router(endpoints.router)
 
+def process_queue():
+    while True:
+        prompt = prompt_queue.get()
+        wav_file = audiocraft.generate_audio(prompt)
+
+        with open(wav_file, "rb") as f:
+            b = f.read()
+            wav_queue.put(b)
+
 if __name__ == "__main__":
     import uvicorn
+
+    # Create and start the queue processing thread
+    queue_thread = threading.Thread(target=process_queue, daemon=True)
+    queue_thread.start()
+
+    # Run the Uvicorn server
     uvicorn.run(app, host="127.0.0.1", port=8080)

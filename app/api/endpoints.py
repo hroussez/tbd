@@ -4,11 +4,15 @@ from fastapi import APIRouter, HTTPException, Query, FastAPI, Form, Response
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from twilio.twiml.messaging_response import MessagingResponse
+from queue import Queue
+import io
 
 from app.services.stream import video_streamer
 from app.services.prompt import generate_prompt
 
 router = APIRouter()
+prompt_queue: Queue = None
+wav_queue: Queue = None
 
 chat_history = [
     {"role": "user", "content": "let's go!"},
@@ -17,22 +21,35 @@ chat_history = [
 
 messages_history = []
 
+
+def initialize_router(global_prompt_queue: Queue, global_wav_queue: Queue):
+    global prompt_queue
+    global wav_queue
+
+    prompt_queue = global_prompt_queue
+    wav_queue = global_wav_queue
+
+    prompt = get_prompt_sync()  # Await the coroutine to get the result
+    prompt_queue.put(prompt)
+
 @router.get("/stream")
-async def stream_video(token: str = Query(default=None)):
-    try:
-        video_streamer(token)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=e)
+async def stream():
+    wav_data = wav_queue.get()
+    prompt_queue.put(get_prompt_sync())
+
+    def iterfile():
+        with io.BytesIO(wav_data) as f:
+            while True:
+                chunk = f.read(8192)  # Read in 8KB chunks
+                if not chunk:
+                    break
+                yield chunk
 
     # Create a streaming response from the generator
-    response = StreamingResponse(video_streamer(token, get_prompt()), media_type="audio/wave")
+    response = StreamingResponse(iterfile(), media_type="audio/wav")
     
     # Add headers to suggest a filename for downloading, if necessary
     response.headers["Content-Disposition"] = "inline; filename=audio.wav"
-    
-    # Include the new token in the response headers (optional, you can return it via JSON too)
-    new_token = str(uuid.uuid4()) if token is None else token
-    response.headers["X-New-Token"] = new_token
     
     return response
 
@@ -44,9 +61,6 @@ async def prompt(From: str = Form(...), Body: str = Form(...)):
     latest_prompt = generate_prompt(chat_history)
     chat_history.append({"role": "assistant", "content": latest_prompt})
 
-    with open("prompt.txt", "w") as f:
-        f.write(latest_prompt)
-
     response = MessagingResponse()
     response.message(latest_prompt)
 
@@ -55,6 +69,10 @@ async def prompt(From: str = Form(...), Body: str = Form(...)):
 
 @router.get("/prompt")
 async def get_prompt():
+    return chat_history[-1]["content"]
+
+
+def get_prompt_sync():
     return chat_history[-1]["content"]
 
 @router.get("/history")
