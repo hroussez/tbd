@@ -71,6 +71,7 @@ file_cleaner = FileCleaner()
 
 
 def make_waveform(*args, **kwargs):
+    return ""
     # Further remove some warnings.
     be = time.time()
     with warnings.catch_warnings():
@@ -243,24 +244,61 @@ def generate_audio(prompt, last_wav=None):
     
     # Crossfade the two audio files
     output = audio1.append(audio2, crossfade=crossfade_duration)
-    # Get the total duration of the output audio in milliseconds
-    total_duration = len(output)
 
-    with NamedTemporaryFile("wb", suffix=".wav", delete=False) as file:
-        print("exporting crossfade", file.name)
-        output.export(file.name, format="wav")
-        wav_file = file.name
+
+    # Apply EQ fade to the second track during the crossfade
+    # For example, progressively increasing treble
+    def apply_eq_fade(audio_segment, start_time, end_time):
+        """Apply EQ fade by increasing the high frequencies over time."""
+        eq_faded_audio = audio_segment
+        fade_duration = end_time - start_time
+
+        # Break down the segment into small chunks to apply EQ progressively
+        chunk_size = 100  # 100 milliseconds chunks
+        for i in range(0, fade_duration, chunk_size):
+            # Calculate the current volume boost for high frequencies
+            factor = (i / fade_duration)  # A factor that increases over time
+            
+            # Apply EQ boost (increasing the dB gain for higher frequencies)
+            eq_faded_audio = eq_faded_audio.overlay(
+                audio_segment[start_time + i:start_time + i + chunk_size].high_pass_filter(5000).apply_gain(factor * 6),  # Adjust dB gain as needed
+                position=i
+            )
+        return eq_faded_audio
+
+    # Apply EQ fade to the second track starting at the crossfade duration
+    eq_faded_audio2 = apply_eq_fade(audio2, start_time=0, end_time=crossfade_duration)
+
+    # Crossfade again, but with EQ faded version of track 2
+    output_with_eq_fade = audio1.append(eq_faded_audio2, crossfade=crossfade_duration)
+
+    # Get the total duration of the output audio in milliseconds
+    total_duration = len(output_with_eq_fade)
 
     # Calculate the midpoint to split the audio
     midpoint = total_duration // 2
-    print(total_duration)
 
     # Split the audio into two parts
-    first_half = output[:midpoint]
-    second_half = output[midpoint:]
+    first_half = output_with_eq_fade[:midpoint]
+    second_half = output_with_eq_fade[midpoint:]
 
+    # Export the first and second halves as separate files
     first_half.export(wav1, format="wav")
     second_half.export(wav2, format="wav")
+
+    # # Get the total duration of the output audio in milliseconds
+    # total_duration = len(output)
+
+    # # Calculate the midpoint to split the audio
+    # midpoint = total_duration // 2
+    # print(total_duration)
+
+    # # Split the audio into two parts
+    # first_half = output[:midpoint]
+    # second_half = output[midpoint:]
+
+    # first_half.export(wav1, format="wav")
+    # second_half.export(wav2, format="wav")
 
     print("returning", wav2)
 

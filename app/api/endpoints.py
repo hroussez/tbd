@@ -32,6 +32,7 @@ def initialize_router(global_prompt_queue: Queue, global_wav_queue: Queue):
     prompt = get_prompt_sync()  # Await the coroutine to get the result
     prompt_queue.put(prompt)
     prompt_queue.put(prompt)
+    prompt_queue.put(prompt)
 
 @router.get("/stream")
 async def stream():
@@ -68,6 +69,8 @@ async def prompt(From: str = Form(...), Body: str = Form(...)):
 
     response = MessagingResponse()
     response.message(latest_prompt)
+
+    print("prompt", latest_prompt)
 
     # return Response(content=str(response), media_type="application/xml")
 
