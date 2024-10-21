@@ -1,5 +1,97 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Gapless5 } from '@regosen/gapless-5';
+
+
+
+const Prompt: React.FC = () => {
+  const [prompt, setPrompt] = useState<string>('');
+
+  const fetchPrompt = async () => {
+    try {
+      const response = await fetch('https://1524-195-242-23-83.ngrok-free.app/prompt', {
+        headers: {
+          'ngrok-skip-browser-warning': '69420'
+        }
+      });
+      const data = await response.json();
+      console.log(data)
+      setPrompt(data || 'No prompt available');
+    } catch (error) {
+      console.error('Error fetching prompt:', error);
+      setPrompt('Error fetching prompt');
+    }
+  };
+
+  useEffect(() => {
+    fetchPrompt();
+    const interval = setInterval(fetchPrompt, 10000);
+    return () => clearInterval(interval);
+  }, []);
+  return (
+    <div className="flex justify-center items-center">
+      <div className="w-1/2 p-4 rounded-lg">
+        <p className="text-center text-white text-3xl">{prompt}</p>
+      </div>
+    </div>
+  );
+};
+
+interface HistoryItem {
+  timestamp: string;
+  content: string;
+  from: string;
+}
+const History: React.FC = () => {
+  const [history, setHistory] = useState<HistoryItem[]>([]);
+  const [isCollapsed, setIsCollapsed] = useState<boolean>(false);
+
+  const fetchHistory = async () => {
+    try {
+      const response = await fetch('https://1524-195-242-23-83.ngrok-free.app/history', {
+        headers: {
+          'ngrok-skip-browser-warning': '69420'
+        }
+      });
+      const data = await response.json();
+      setHistory(data.reverse());
+      console.log(data)
+    } catch (error) {
+      console.error('Error fetching history:', error);
+    }
+  };
+
+  useEffect(() => {
+    fetchHistory();
+    const interval = setInterval(fetchHistory, 10000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const colors = ['#ff00ff', '#00ffff', '#8a2be2', '#ff69b4', '#9370db', '#4169e1', '#9932cc', '#1e90ff'];
+  return (
+    <div className={`fixed right-0 top-1/2 transform -translate-y-1/2 ${isCollapsed ? 'w-12' : 'w-96'} h-1/2 overflow-y-auto bg-gray-900 bg-opacity-50 text-white p-2 z-50 rounded-l-lg shadow-lg transition-all duration-300`}>
+      <button 
+        onClick={() => setIsCollapsed(!isCollapsed)}
+        className="absolute top-2 left-2 bg-gray-700 hover:bg-gray-600 rounded-full p-1"
+      >
+        {isCollapsed ? '💗' : '💗'}
+      </button>
+      {!isCollapsed && (
+        <>
+          <h2 className="text-lg font-bold mb-2 text-center">Back2Back</h2>
+          {history.map((item, index) => (
+            <div key={index} className="mb-2 p-1 rounded" style={{ backgroundColor: `${colors[index % colors.length]}40` }}>
+              <div className="flex justify-between items-center">
+                <p className="text-xs opacity-70">{item.timestamp.substring(0, 10)}</p>
+                <p className="font-semibold">📞 {item.from}</p>
+              </div>
+              <p className="text-sm">{item.content}</p>
+            </div>
+          ))}
+        </>
+      )}
+    </div>
+  );
+};
+
 
 const StarBackground: React.FC<{ isPlaying: boolean; onClick: () => void }> = ({ isPlaying, onClick }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -97,55 +189,74 @@ const StarBackground: React.FC<{ isPlaying: boolean; onClick: () => void }> = ({
   );
 };
 const Player: React.FC = () => {
-  const playerRef = useRef<Gapless5 | null>(null);
+  const audioRef1 = useRef<HTMLAudioElement>(null);
+  const audioRef2 = useRef<HTMLAudioElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [currentPlayer, setCurrentPlayer] = useState<1 | 2>(1);
+  const [nextTrackUrl, setNextTrackUrl] = useState<string | null>(null);
 
   useEffect(() => {
-    playerRef.current = new Gapless5({ guiId: 'gapless5-player-id', loop: true });
+    if (audioRef1.current && audioRef2.current) {
+      audioRef1.current.src = 'https://1524-195-242-23-83.ngrok-free.app/stream';
+      audioRef1.current.load();
+    }
+  }, []);
 
-    const fetchAndAddTrack = async () => {
-      try {
-        const response = await fetch('https://1524-195-242-23-83.ngrok-free.app/stream', {
-          headers: {
-            'Accept': 'audio/wav'
-          }
-        });
-        if (!response.ok) {
-          throw new Error('Network response was not ok');
-        }
-        const blob = await response.blob();
-        const url = URL.createObjectURL(blob);
-        playerRef.current?.addTrack(url);
-      } catch (error) {
-        console.error('Error fetching audio:', error);
+  useEffect(() => {
+    const currentAudio = currentPlayer === 1 ? audioRef1.current : audioRef2.current;
+    const nextAudio = currentPlayer === 1 ? audioRef2.current : audioRef1.current;
+    if (!currentAudio || !nextAudio) return;
+
+    const handleTimeUpdate = () => {
+      if (currentAudio.currentTime >= 5 && !nextTrackUrl) {
+        const url = 'https://1524-195-242-23-83.ngrok-free.app/stream';
+        setNextTrackUrl(url);
+        nextAudio.src = url;
+        nextAudio.load();
+        console.log('New track ready to play');
       }
     };
 
-    fetchAndAddTrack();
-
-    playerRef.current.onfinishedtrack = () => {
-      console.log('onfinishedtrack');
-      fetchAndAddTrack();
+    const handleEnded = () => {
+      console.log('Current track ended');
+      if (nextTrackUrl) {
+        console.log('Has next track track ended');
+        currentAudio.pause();
+        currentAudio.currentTime = 0;
+        nextAudio.play();
+        setCurrentPlayer(currentPlayer === 1 ? 2 : 1);
+        setNextTrackUrl(null);
+      }
     };
-  }, []);
+
+    currentAudio.addEventListener('timeupdate', handleTimeUpdate);
+    currentAudio.addEventListener('ended', handleEnded);
+
+    return () => {
+      currentAudio.removeEventListener('timeupdate', handleTimeUpdate);
+      currentAudio.removeEventListener('ended', handleEnded);
+    };
+  }, [currentPlayer, nextTrackUrl]);
 
   const handlePlay = () => {
-    if (playerRef.current) {
-      playerRef.current.play();
+    const currentAudio = currentPlayer === 1 ? audioRef1.current : audioRef2.current;
+    if (currentAudio) {
+      currentAudio.play();
       setIsPlaying(true);
     }
   };
 
   return (
-    <div>
-      <div id="gapless5-player-id" />
-      <button
+    <div className="fixed top-0 left-0 z-50">
+      <audio ref={audioRef1} />
+      <audio ref={audioRef2} />
+      {!isPlaying && <button
         onClick={handlePlay}
         className="mt-4 px-6 py-3 bg-pink-500 text-white rounded-full hover:bg-pink-600 transition-colors duration-300"
         disabled={isPlaying}
       >
-        {isPlaying ? 'Playing' : 'Start Play'}
-      </button>
+        {isPlaying ? '' : 'Start Play'}
+      </button>}
     </div>
   );
 };
@@ -159,29 +270,32 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-black flex flex-col relative">
-      {/* <StarBackground isPlaying={isPlaying} onClick={togglePlayPause} /> */}
       <Player />
+      <StarBackground isPlaying={isPlaying} onClick={togglePlayPause} />
+      <History />
       <div className="w-full bg-black p-4 relative z-10">
         {/* <span className="text-pink-400 text-xl font-bold animate-pulse">TBD</span> */}
       </div>
       <div className="flex-grow flex flex-col items-center justify-center p-4 relative z-10">
         <div className="w-full">
-          <p className="text-3xl text-center text-pink-500 animate-pulse shadow-glow">
-            ... an infinite collaborative AI DJ!
-          </p>
+         
+         <Prompt />
+         
         </div>
-        <button
+       
+
+        {/* <button
           onClick={togglePlayPause}
           className="mt-8 px-6 py-3 bg-pink-500 text-white rounded-full hover:bg-pink-600 transition-colors duration-300"
         >
           {isPlaying ? 'Pause' : 'Play'} Animation
-        </button>
+        </button> */}
         <div className="absolute bottom-4 left-4 w-32 h-32">
           <img 
             src="/public/qrt.png" 
             alt="QR Code" 
             className="w-full h-full"
-            style={{ filter: 'invert(48%) sepia(89%) saturate(2476%) hue-rotate(280deg) brightness(118%) contrast(119%)' }}
+            style={{ filter: 'invert(48%) sepia(89%) saturate(2476%) hue-rotate(240deg) brightness(118%) contrast(119%)' }}
           />
         </div>
       </div>
